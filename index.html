@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Tin Học 8 - Kahoot Style</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        function TinHoc8QuizGame() {
+            const baseQuestions = [
+                {
+                    question: 'Đầu trang (Header) nằm ở vị trí nào của văn bản?',
+                    options: ['Cuối mỗi trang', 'Bên trái văn bản', 'Trên cùng của mỗi trang', 'Ở giữa văn bản'],
+                    answer: 'Trên cùng của mỗi trang'
+                },
+                {
+                    question: 'Khối lệnh repeat trong Scratch dùng để làm gì?',
+                    options: ['Tạo biến', 'Lặp lại hành động', 'Dừng chương trình', 'Phát âm thanh'],
+                    answer: 'Lặp lại hành động'
+                },
+                {
+                    question: 'Kiểu dữ liệu dùng để lưu văn bản là gì?',
+                    options: ['Boolean', 'String', 'Number', 'List'],
+                    answer: 'String'
+                },
+                ...Array.from({ length: 97 }, (_, i) => ({
+                    question: `Câu hỏi Tin học 8 số ${i + 4}`,
+                    options: ['Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D'],
+                    answer: 'Đáp án A'
+                }))
+            ];
+
+            const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+
+            const questions = useMemo(() => {
+                return shuffle(baseQuestions).map((q) => ({
+                    ...q,
+                    options: shuffle(q.options)
+                }));
+            }, []);
+
+            const [playerName, setPlayerName] = useState('');
+            const [started, setStarted] = useState(false);
+            const [finished, setFinished] = useState(false);
+            const [currentQuestion, setCurrentQuestion] = useState(0);
+            const [selected, setSelected] = useState(null);
+            const [showAnswer, setShowAnswer] = useState(false);
+            const [score, setScore] = useState(0);
+            const [timeLeft, setTimeLeft] = useState(20);
+            const [leaderboard, setLeaderboard] = useState([]);
+
+            const correctSound = useMemo(() => new Audio('https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg'), []);
+            const wrongSound = useMemo(() => new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg'), []);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('tinHoc8Leaderboard');
+                if (saved) {
+                    setLeaderboard(JSON.parse(saved));
+                }
+            }, []);
+
+            useEffect(() => {
+                if (!started || finished) return;
+
+                if (timeLeft <= 0) {
+                    nextQuestion();
+                    return;
+                }
+
+                const timer = setTimeout(() => {
+                    setTimeLeft((t) => t - 1);
+                }, 1000);
+
+                return () => clearTimeout(timer);
+            }, [timeLeft, started, finished]);
+
+            const handleAnswer = (option) => {
+                if (showAnswer) return;
+
+                setSelected(option);
+                setShowAnswer(true);
+
+                if (option === questions[currentQuestion].answer) {
+                    correctSound.play();
+                    setScore((s) => s + 1);
+                } else {
+                    wrongSound.play();
+                }
+            };
+
+            const nextQuestion = () => {
+                if (currentQuestion + 1 >= questions.length) {
+                    finishGame();
+                    return;
+                }
+
+                setCurrentQuestion((q) => q + 1);
+                setSelected(null);
+                setShowAnswer(false);
+                setTimeLeft(20);
+            };
+
+            const finishGame = () => {
+                setFinished(true);
+
+                const newBoard = [
+                    ...leaderboard,
+                    {
+                        name: playerName || 'Học sinh',
+                        score: (score * 0.1).toFixed(1)
+                    }
+                ].sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+
+                setLeaderboard(newBoard);
+                localStorage.setItem('tinHoc8Leaderboard', JSON.stringify(newBoard));
+            };
+
+            const restartGame = () => {
+                window.location.reload();
+            };
+
+            const q = questions[currentQuestion];
+
+            if (!started) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-yellow-300 via-orange-500 to-red-600 flex items-center justify-center p-6 overflow-hidden">
+                        <div className="bg-white/95 backdrop-blur-xl rounded-[40px] shadow-2xl p-10 max-w-2xl w-full border-8 border-white text-center animate-pulse">
+                            <h1 className="text-6xl font-black mb-6 text-purple-700">
+                                🎮 QUIZ TIN HỌC 8
+                            </h1>
+
+                            <p className="text-xl text-gray-700 mb-8 font-semibold">
+                                Phiên bản PRO phong cách Kahoot + Scratch
+                            </p>
+
+                            <input
+                                type="text"
+                                value={playerName}
+                                onChange={(e) => setPlayerName(e.target.value)}
+                                placeholder="Nhập tên học sinh"
+                                className="w-full p-5 rounded-2xl border-4 border-purple-300 text-xl mb-8"
+                            />
+
+                            <div className="grid grid-cols-2 gap-4 mb-8 text-left">
+                                <div className="bg-blue-100 p-4 rounded-2xl font-bold">📚 100 câu hỏi</div>
+                                <div className="bg-green-100 p-4 rounded-2xl font-bold">⏰ 20 giây/câu</div>
+                                <div className="bg-yellow-100 p-4 rounded-2xl font-bold">🏆 10 điểm tối đa</div>
+                                <div className="bg-pink-100 p-4 rounded-2xl font-bold">🎵 Âm thanh Kahoot</div>
+                            </div>
+
+                            <button
+                                onClick={() => setStarted(true)}
+                                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-105 transition-all text-white px-10 py-5 rounded-3xl text-2xl font-black shadow-2xl"
+                            >
+                                🚀 BẮT ĐẦU CHƠI
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (finished) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 p-6 flex items-center justify-center">
+                        <div className="bg-white rounded-[40px] p-10 max-w-3xl w-full shadow-2xl text-center border-8 border-yellow-400">
+                            <h1 className="text-6xl font-black text-purple-700 mb-6">🏆 HOÀN THÀNH</h1>
+
+                            <div className="text-7xl font-black text-blue-600 mb-6">
+                                {(score * 0.1).toFixed(1)}
+                            </div>
+
+                            <p className="text-2xl mb-8 font-bold">
+                                {playerName || 'Học sinh'} trả lời đúng {score}/100 câu
+                            </p>
+
+                            <div className="bg-gray-100 rounded-3xl p-6 text-left mb-8 max-h-80 overflow-auto">
+                                <h2 className="text-3xl font-black mb-4">🏅 BẢNG XẾP HẠNG</h2>
+
+                                {leaderboard.map((item, index) => (
+                                    <div key={index} className="flex justify-between items-center bg-white rounded-2xl p-4 mb-3 shadow">
+                                        <span className="font-bold text-lg">#{index + 1} {item.name}</span>
+                                        <span className="font-black text-blue-600">{item.score} điểm</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={restartGame}
+                                className="bg-gradient-to-r from-green-500 to-emerald-700 text-white px-10 py-5 rounded-3xl text-2xl font-black hover:scale-105 transition-all"
+                            >
+                                🔄 CHƠI LẠI
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-blue-900 p-4 md:p-8 flex items-center justify-center">
+                    <div className="w-full max-w-6xl bg-white rounded-[40px] shadow-2xl border-8 border-yellow-400 overflow-hidden">
+
+                        <div className="bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 p-6 text-white flex flex-col md:flex-row justify-between items-center">
+                            <div>
+                                <h1 className="text-4xl font-black">🎯 QUIZ TIN HỌC 8</h1>
+                                <p className="font-bold">👤 {playerName || 'Học sinh'}</p>
+                            </div>
+
+                            <div className="flex gap-4 mt-4 md:mt-0">
+                                <div className="bg-white text-red-600 px-6 py-3 rounded-2xl font-black text-2xl">
+                                    ⏰ {timeLeft}s
+                                </div>
+
+                                <div className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-2xl">
+                                    ⭐ {(score * 0.1).toFixed(1)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8">
+                            <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-3xl p-8 mb-8 border-4 border-blue-300">
+                                <p className="text-lg font-bold text-gray-500 mb-2">
+                                    Câu {currentQuestion + 1}/100
+                                </p>
+
+                                <h2 className="text-3xl font-black text-gray-800 leading-relaxed">
+                                    {q.question}
+                                </h2>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6">
+                                {q.options.map((option, index) => {
+                                    const colors = [
+                                        'from-red-500 to-pink-600',
+                                        'from-blue-500 to-cyan-600',
+                                        'from-yellow-400 to-orange-500',
+                                        'from-green-500 to-emerald-600'
+                                    ];
+
+                                    let extra = '';
+
+                                    if (showAnswer) {
+                                        if (option === q.answer) {
+                                            extra = 'ring-8 ring-green-300 scale-105';
+                                        } else if (option === selected) {
+                                            extra = 'opacity-50';
+                                        }
+                                    }
+
+                                    return (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleAnswer(option)}
+                                            className={`bg-gradient-to-r ${colors[index]} ${extra} text-white p-8 rounded-3xl text-left shadow-2xl hover:scale-105 transition-all duration-300 min-h-[150px]`}
+                                        >
+                                            <div className="text-4xl font-black mb-3">
+                                                {String.fromCharCode(65 + index)}
+                                            </div>
+
+                                            <div className="text-2xl font-bold leading-relaxed">
+                                                {option}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {showAnswer && (
+                                <div className="text-center mt-10">
+                                    <button
+                                        onClick={nextQuestion}
+                                        className="bg-gradient-to-r from-purple-600 to-blue-700 hover:scale-105 transition-all text-white px-12 py-5 rounded-3xl text-2xl font-black shadow-2xl"
+                                    >
+                                        ➜ CÂU TIẾP THEO
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TinHoc8QuizGame />);
+    </script>
+</body>
+</html>
